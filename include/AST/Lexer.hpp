@@ -112,28 +112,28 @@ public:
         if (atEnd())
             throw LexerException{"Unterminated string literal...", line};
 
-        current--;
         tokens.push_back(TokenInstance {TokenClass::T_STRING, str});
     }
 
     void parseNumber() {
         std::string num;
 
-        while (!atEnd() && isDigit(seek())) {
+        while (!atEnd() && isDigit(at())) {
             num += at();
             advanceCurrent();
         }
 
-        if ((next('.') || next('e'))) {
+        if ((at() == 'e') || (at() == '.')){
             num += at();
             advanceCurrent();
         }
 
-        while (!atEnd() && isDigit(seek())) {
+        while (!atEnd() && isDigit(at())) {
             num += at();
             advanceCurrent();
         }
 
+        current--;
         tokens.push_back(TokenInstance {TokenClass::T_NUMBER, num});
     }
 
@@ -154,11 +154,11 @@ public:
             advanceCurrent();
         }
 
+        current--;
         if (tokenClasses.find(id) != tokenClasses.end())
             tokens.push_back(TokenInstance {tokenClasses[id], id});
         else
             tokens.push_back(TokenInstance {TokenClass::T_IDENTIFIER, id});
-        
     }
 
     std::vector<TokenInstance> compile() {
@@ -235,6 +235,7 @@ public:
                 break;
             case '"':
                 parseString();
+                break;
             default:
                 if (isDigit(_current))
                     parseNumber();
@@ -242,6 +243,8 @@ public:
                     parseIdentifier();
                 else
                     throw LexerException{format("Unknown character '%c' found while reading file...", {_current}), line};
+                    
+                break;
             }
 
             advanceCurrent();

@@ -11,6 +11,8 @@
 #include <unordered_map>
 #include <variant>
 
+#define debug(...) std::cout << __VA_ARGS__ << std::endl;
+
 using formatValues = std::variant<int, double, char, const char*, std::string, bool>;
 
 std::string format(std::string input, std::vector<formatValues> args) {
