@@ -19,8 +19,7 @@ GPair fetchContent(int count, char** argv) {
 
     inputFile.open(filePath, std::ios::in);
 
-    if (!inputFile.is_open())
-    {
+    if (!inputFile.is_open()) {
         std::cerr
             << ">> Genesis:\n"
             << "Could not open file at path '" << filePath << "'...\n";
@@ -39,9 +38,8 @@ GPair fetchContent(int count, char** argv) {
 int main(int charc, char** argv) {
     GPair sourceCode = fetchContent(charc, argv);
 
-    if (!sourceCode.success) {
+    if (!sourceCode.success)
         return 1;
-    }
 
     Lexer lexer(sourceCode.response);
     std::vector<TokenInstance> tokens;
@@ -52,8 +50,9 @@ int main(int charc, char** argv) {
     catch(LexerException& e) {
         std::cerr
             << ">> GenesisException:\n"
-            << ">> Found on line: " << e.line << "\n"
-            << e.what() << "\n";
+            << ">> Message: " << e.message << "\n"
+            << ">> Line: " << e.line << "\n";
+
         return 1;
     }
 

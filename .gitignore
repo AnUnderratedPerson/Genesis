@@ -1,11 +1,9 @@
-# BUILD UTILITY AND CMAKE FILES
-CMakeFiles
-build
+# CMAKE AND BUILD
 *.exe
 *.dll
-*.lib
 *.obj
-cmake_install.cmake
-CMakeCache.txt
+*.lib
 
-# OTHERS
+CMakeFiles
+CMakeCache.txt
+cmake_install.cmake

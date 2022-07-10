@@ -47,6 +47,10 @@ public:
         return sourceCode[current];
     }
 
+    char seek() {
+        return ((current + 1) > sourceCode.size() ? sourceCode[current + 1] : '\0');
+    }
+
     bool next(char _next) {
         if (preview(_next)) {
             advanceCurrent();
@@ -90,31 +94,42 @@ public:
         advanceCurrent();
         std::string str;
 
-        while (!atEnd() && at() != '"') {
+        if (at() == '"') {
+            tokens.push_back(TokenInstance{TokenClass::T_STRING, str});
+            return;
+        }
+
+        while (!atEnd()) {
+            char _char = at();
+
+            if (_char == '"')
+                break;
+
             str += at();
             advanceCurrent();
         }
 
         if (atEnd())
-            throw LexerException{ ">> Unterminated string literal...", line };
+            throw LexerException{"Unterminated string literal...", line};
 
+        current--;
         tokens.push_back(TokenInstance {TokenClass::T_STRING, str});
     }
 
     void parseNumber() {
         std::string num;
 
-        while (!atEnd() && isDigit(at())) {
+        while (!atEnd() && isDigit(seek())) {
             num += at();
             advanceCurrent();
         }
 
-        if ((at() == '.' || at() == 'e')) {
+        if ((next('.') || next('e'))) {
             num += at();
             advanceCurrent();
         }
 
-        while (!atEnd() && isDigit(at())) {
+        while (!atEnd() && isDigit(seek())) {
             num += at();
             advanceCurrent();
         }
@@ -127,6 +142,8 @@ public:
         while (!atEnd() && at() != '\n') {
             advanceCurrent();
         }
+
+        current--;
     }
 
     void parseIdentifier() {
@@ -186,6 +203,7 @@ public:
             case '\t':
             case '\r':
             case '\b':
+            case '\0':
                 break;
             case '-':
                 tokens.push_back( {TokenClass::T_MINUS, "-"});
@@ -223,7 +241,7 @@ public:
                 else if (isAlpha(_current))
                     parseIdentifier();
                 else
-                    throw LexerException{">> Unknown character ", line};
+                    throw LexerException{format("Unknown character '%c' found while reading file...", {_current}), line};
             }
 
             advanceCurrent();
