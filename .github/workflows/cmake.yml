@@ -35,13 +35,13 @@ jobs:
       # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
       run: ctest -C ${{env.BUILD_TYPE}}
       
-    - name: Clone input file and run application
+    - name: Clone input file and Run application
       working-directory: ${{github.workspace}}/build
       run: |
           ls
           mkdir test
           cp ../test/syntax.txt test
-          Genesis test/syntax.txt
+          ./Genesis test/syntax.txt
           
     - name: Deinitialization cleanup
       working-directory: ${{github.workspace}}/build
