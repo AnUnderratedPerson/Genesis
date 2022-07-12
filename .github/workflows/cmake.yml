@@ -29,11 +29,9 @@ jobs:
     - name: Build
       # Build your program with the given configuration
       run: cmake --build ${{BUILD_ENV}} --config ${{env.BUILD_TYPE}}
-      
-      # Changing the current directory for easy testing
-    - working-directory: ${{BUILD_ENV}}
 
     - name: Run Appplicatuion with Input/s
+      working-directory: ${{BUILD_ENV}}
       run: |
           mkdir internal_test
           cp ../test/* internal_test
@@ -46,6 +44,7 @@ jobs:
       run: ctest -C ${{env.BUILD_TYPE}}
           
     - name: Deinitialization Cleanup
+      working-directory: ${{BUILD_ENV}}
       run: |
           rm test/*
           rmdir test
