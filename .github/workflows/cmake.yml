@@ -46,5 +46,5 @@ jobs:
     - name: Deinitialization Cleanup
       working-directory: ${{env.BUILD_ENV}}
       run: |
-          rm test/*
-          rmdir test
+          rm internal_test/*
+          rmdir internal_test
