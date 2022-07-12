@@ -3,8 +3,8 @@ name: CMake
 on:
   push:
     branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+    paths-ignore: 
+      - ".github/**.yml"
 
 env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
@@ -34,7 +34,7 @@ jobs:
       working-directory: ${{env.BUILD_ENV}}
       run: |
           mkdir internal_test
-          cp ../test/* internal_test
+          cp ../test/** internal_test
           ./Genesis internal_test/syntax.txt
 
     - name: CTest
