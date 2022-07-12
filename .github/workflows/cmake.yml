@@ -4,7 +4,11 @@ on:
   push:
     branches: [ "main" ]
     paths-ignore: 
+<<<<<<< HEAD
       - ".github/**.yml"
+=======
+      - ".github/**"
+>>>>>>> 948d036 (Fixed cmake.yml)
 
 env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
