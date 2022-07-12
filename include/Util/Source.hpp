@@ -22,31 +22,32 @@ std::string format(std::string input, std::vector<formatValues> args) {
     while (current < input.size()) {
         if (input[current] == '%') {
             // Check if the next character is a valid format specifier
-            current++;
-
-            if (current >= input.size())
+            if (current + 1 >= input.size())
                 break;
 
             if (argc >= args.size())
                 break;
 
-            switch (input[current]) {
+            switch (input[current + 1]) {
                 case 'd':
                     {
                         double _in = std::get<double>(args.at(argc));
                         output.replace(current - 1, 2, std::to_string(_in));
+                        argc++;
                     }
                     break;
                 case 'i':
                     {
                         int _in = std::get<int>(args.at(argc));
                         output.replace(current - 1, 2, std::to_string(_in));
+                        argc++;
                     }
                     break;
                 case 'c':
                     {
                         char _in = std::get<char>(args.at(argc));
                         output.replace(current - 1, 2, std::string(1, _in));
+                        argc++;
                     }
                     break;
                 case 's':
@@ -54,11 +55,13 @@ std::string format(std::string input, std::vector<formatValues> args) {
                         try {
                             const char* _in = std::get<const char*>(args.at(argc));
                             output.replace(current - 1, 2, _in);
+                            argc++;
                         }
                         catch(...) {
                             try {
                                 std::string _in = std::get<std::string>(args.at(argc));
                                 output.replace(current - 1, 2, _in);
+                                argc++;
                             }
                             catch(...) {}
                         }
@@ -68,15 +71,15 @@ std::string format(std::string input, std::vector<formatValues> args) {
                     {
                         bool _in = std::get<bool>(args.at(argc));
                         output.replace(current - 1, 2, (_in ? "true" : "false"));
+                        argc++;
                     }
                     break;
                 default:
                     break;
             }
-
-            current++;
-            argc++;
         }
+
+        current++;
     }
 
     return output;

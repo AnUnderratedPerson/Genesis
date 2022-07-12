@@ -1,4 +1,4 @@
-#include "../include/AST/Lexer.hpp"
+#include "../include/AST/Parser.hpp"
 
 struct GPair {
     bool success;
@@ -35,6 +35,7 @@ GPair fetchContent(int count, char** argv) {
     return {true, buffer.str()};
 }
 
+/*
 int main(int charc, char** argv) {
     GPair sourceCode = fetchContent(charc, argv);
 
@@ -60,4 +61,30 @@ int main(int charc, char** argv) {
         std::cout
             << ">> Value: " << i.value << "\n";
     }
+
+    Parser parser(tokens);
+    std::vector<std::shared_ptr<Statement>> statements;
+
+    try {
+        statements = parser.compile();
+    }
+    catch(ParserException& e) {
+        std::cerr
+            << ">> GenesisException:\n"
+            << ">> Message: " << e.message << "\n";
+
+        return 1;
+    }
+
+    for (auto i : statements) {
+        std::cout
+            << i->toString() << "\n";
+    }
+
+    return 0;
+}
+*/
+
+int main() {
+    std::cout << format("(%i %i)", {1, 2, 3}) << std::endl;
 }
