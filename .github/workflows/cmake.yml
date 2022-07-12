@@ -36,7 +36,7 @@ jobs:
           mkdir internal_test
           cp ../test/* internal_test
           ls internal_test
-          ./Genesis test/syntax.txt
+          ./Genesis internal_test/syntax.txt
 
     - name: CTest
       # Execute tests defined by the CMake configuration.  
