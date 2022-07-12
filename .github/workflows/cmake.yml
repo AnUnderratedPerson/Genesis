@@ -30,12 +30,11 @@ jobs:
       # Build your program with the given configuration
       run: cmake --build ${{env.BUILD_ENV}} --config ${{env.BUILD_TYPE}}
 
-    - name: Run Appplicatuion with Input/s
+    - name: Run Appplication with Input/s
       working-directory: ${{env.BUILD_ENV}}
       run: |
           mkdir internal_test
           cp ../test/* internal_test
-          ls internal_test
           ./Genesis internal_test/syntax.txt
 
     - name: CTest
