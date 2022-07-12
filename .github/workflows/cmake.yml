@@ -30,7 +30,7 @@ jobs:
       # Build your program with the given configuration
       run: cmake --build ${{env.BUILD_ENV}} --config ${{env.BUILD_TYPE}}
 
-    - name: Run Appplicatuion with Input/s
+    - name: Run Appplication with Input/s
       working-directory: ${{env.BUILD_ENV}}
       run: |
           mkdir internal_test
