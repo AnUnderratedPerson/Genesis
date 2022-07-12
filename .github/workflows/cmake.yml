@@ -24,14 +24,14 @@ jobs:
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
       # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
-      run: cmake -B ${{BUILD_ENV}} -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+      run: cmake -B ${{env.BUILD_ENV}} -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
 
     - name: Build
       # Build your program with the given configuration
-      run: cmake --build ${{BUILD_ENV}} --config ${{env.BUILD_TYPE}}
+      run: cmake --build ${{env.BUILD_ENV}} --config ${{env.BUILD_TYPE}}
 
     - name: Run Appplicatuion with Input/s
-      working-directory: ${{BUILD_ENV}}
+      working-directory: ${{env.BUILD_ENV}}
       run: |
           mkdir internal_test
           cp ../test/* internal_test
@@ -44,7 +44,7 @@ jobs:
       run: ctest -C ${{env.BUILD_TYPE}}
           
     - name: Deinitialization Cleanup
-      working-directory: ${{BUILD_ENV}}
+      working-directory: ${{env.BUILD_ENV}}
       run: |
           rm test/*
           rmdir test
