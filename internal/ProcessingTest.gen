@@ -1,0 +1,13 @@
+@define Processor_Tag true
+
+@if Processor_Tag
+    print("Hello world!")
+@else
+    print("Goodbye world!")
+@end
+
+// --> Expected output (as tokens): 
+//        TokenInstance: print
+//        TokenInstance: (
+//        TokenInstance: "Hello world!"
+//        TokenInstance: )

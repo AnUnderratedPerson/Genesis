@@ -1,90 +1,84 @@
-#include "../include/AST/Parser.hpp"
+#include <chrono>
 
-struct GPair {
-    bool success;
-    std::string response;
-};
+#include "../include/Processing/Processor.hpp"
+#include "../include/Util/Util.hpp"
 
-GPair fetchContent(int count, char** argv) {
-    if (count <= 1) {
-        std::cerr
-            << ">> Genesis:\n"
-            << "No file path found or supplied to compiler...\n";
+std::string readSource(std::string path) {
+    std::fstream file;
+    std::stringstream ss;
 
-        return {false, ""};
+    file.open(path, std::ios_base::in);
+
+    if (!file.is_open()) {
+        throw CoreException { "The file supplied for reading is not found at that path..." };
     }
 
-    const char *filePath = argv[1];
-    std::fstream inputFile;
-
-    inputFile.open(filePath, std::ios::in);
-
-    if (!inputFile.is_open()) {
-        std::cerr
-            << ">> Genesis:\n"
-            << "Could not open file at path '" << filePath << "'...\n";
-
-        return {false, ""};
-    }
-
-    std::stringstream buffer;
-
-    buffer << inputFile.rdbuf();
-    inputFile.close();
-
-    return {true, buffer.str()};
+    ss << file.rdbuf();
+    file.close();
+    
+    return ss.str();
 }
 
-/*
-int main(int charc, char** argv) {
-    GPair sourceCode = fetchContent(charc, argv);
+int codeProcessing() {
+    std::string source;
 
-    if (!sourceCode.success)
+    try
+    {
+        source = readSource("internal/ProcessingTest.gen");
+    }
+    catch (CoreException &e)
+    {
+        e.what();
         return 1;
+    }
 
-    Lexer lexer(sourceCode.response);
+    Lexer lexer(source);
     std::vector<TokenInstance> tokens;
 
-    try {
+    try
+    {
         tokens = lexer.compile();
     }
-    catch(LexerException& e) {
-        std::cerr
-            << ">> GenesisException:\n"
-            << ">> Message: " << e.message << "\n"
-            << ">> Line: " << e.line << "\n";
-
+    catch (LexerException &e)
+    {
+        e.what();
         return 1;
     }
 
-    for (auto i : tokens) {
-        std::cout
-            << ">> Value: " << i.value << "\n";
+    std::cout << ">> BEFORE PRE CODE PROCESSING <<" << std::endl;
+
+    for (auto token : tokens)
+    {
+        std::cout << "TokenInstance: " << token.tokenValue << std::endl;
     }
 
-    Parser parser(tokens);
-    std::vector<std::shared_ptr<Statement>> statements;
+    Processor processor(tokens);
+    std::chrono::duration<double, std::milli> duration;
 
-    try {
-        statements = parser.compile();
+    try
+    {
+        auto now = std::chrono::system_clock::now();
+        tokens = processor.process();
+        auto later = std::chrono::system_clock::now();
+        duration = std::chrono::duration<double, std::milli>(later - now);
     }
-    catch(ParserException& e) {
-        std::cerr
-            << ">> GenesisException:\n"
-            << ">> Message: " << e.message << "\n";
-
+    catch (ProcessException &e)
+    {
+        e.what();
         return 1;
     }
 
-    for (auto i : statements) {
-        std::cout
-            << i->toString() << "\n";
+    std::cout << ">> AFTER PRE CODE PROCESSING <<" << std::endl;
+    std::cout << ">> PROCESSING TIME: " << duration.count() << "ms <<" << std::endl;
+
+    for (auto token : tokens)
+    {
+        std::cout << "TokenInstance: " << token.tokenValue << std::endl;
     }
 
     return 0;
 }
-*/
 
 int main() {
-    std::cout << format("(%i %i)", {1, 2, 3}) << std::endl;
+    return codeProcessing();
 }
