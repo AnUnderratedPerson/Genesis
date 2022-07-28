@@ -10,8 +10,6 @@ enum Precedence {
     PREC_COMPARISON,  // < > <= >=
     PREC_TERM,        // + -
     PREC_FACTOR,      // * /
-    PREC_UNARY,       // ! -
-    PREC_CALL,        // . ()
     PREC_PRIMARY      // literals
 };
 
@@ -42,37 +40,19 @@ private:
         {TokenClass::T_LESS, Precedence::PREC_COMPARISON},
         {TokenClass::T_GREATER, Precedence::PREC_COMPARISON},
         {TokenClass::T_LESSEQUAL, Precedence::PREC_COMPARISON},
-        {TokenClass::T_GREATEREQUAL, Precedence::PREC_COMPARISON}};
+        {TokenClass::T_GREATEREQUAL, Precedence::PREC_COMPARISON}
+    };
 
     int tokenIndex = 0;
 
-    void advance() {
-        tokenIndex++;
+    bool atEndOfTokens() {
+        return (tokenIndex == tokens.size());
     }
 
-    bool atEnd() {
-        return tokenIndex >= tokens.size();
-    }
-
-    bool assert(TokenClass type) {
-        if (atEnd()) {
-            return false;
-        }
-
-        if (current().token == type) {
-            return true;
-        }
-
-        return false;
-    }
-
-    bool matches(std::initializer_list<TokenClass> types, TokenInstance token) {
-        if (atEnd()) {
-            return false;
-        }
-
-        for (auto type : types) {
-            if (token.token == type) {
+    bool tokenClassMatch(std::initializer_list<TokenClass> tokens) {
+        for (auto token : tokens) {
+            if (fetch().token == token) {
+                advance();
                 return true;
             }
         }
@@ -80,165 +60,103 @@ private:
         return false;
     }
 
-    TokenInstance consume(TokenClass type, std::string message) {
-        if (atEnd())
-            throw ParserException(message);
+    int advance() { return ++tokenIndex; }
 
-        if (current().token == type) {
-            return tokens[tokenIndex++];
-        }
-
-        throw ParserException(message);
+    int getPrecedence(TokenClass token) { 
+        return (
+            precedences.find(token) != precedences.end() ? precedences[token] : Precedence::PREC_NONE
+        );
     }
 
-    TokenInstance consume(std::initializer_list<TokenClass> types, std::string message) {
-        if (atEnd())
-            throw ParserException(message);
+    TokenInstance fetch() { return (atEndOfTokens() ? TokenInstance { TokenClass::T_EOF, "", 0, 0 } : tokens[tokenIndex]); }
+    TokenInstance fetchPrevious() { return (tokens[tokenIndex - 1]); }
 
-        for (auto type : types) {
-            if (current().token == type) {
-                return tokens[tokenIndex++];
-            }
-        }
+    std::shared_ptr<Statement> binary(std::shared_ptr<Statement> lhs, int currentPrecedence) {
+        auto oper = fetch();
 
-        throw ParserException(message);
-    }
-
-    TokenInstance current() {
-        return tokens[tokenIndex];
-    }
-
-    TokenInstance before() {
-        return tokens[tokenIndex - 1];
-    }
-
-    int getPrecedence(TokenClass token) {
-        if (precedences.find(token) == precedences.end())
-            return PREC_NONE;
-
-        return (int) precedences.at(token);
-    }
-
-    std::shared_ptr<Statement> binary(std::shared_ptr<Statement> lhs, int minPriority) {
-        // Gets the precedence for the current operator, if it doesnt exist, the priority is 0
-        int currentPriority = getPrecedence(current().token);
-
-        // Compare the current operator precedence with the minimum precedence
-        while (currentPriority >= minPriority) {
-            // Consume that operator
-            auto oper = current();
-            // Get the precedence of the operator
-            auto operPriority = getPrecedence(oper.token);
-            // Evaluates the rhs of the operator as an expression
+        while (getPrecedence(oper.token) >= currentPrecedence) {
+            advance();
             auto rhs = primary();
+            advance();
+            auto nextOper = fetch();
 
-            // Gets the current precedence of the operator
-            currentPriority = getPrecedence(current().token);
-
-            // Checks if the operator exists in the map
-            if (currentPriority == PREC_NONE) {
+            if (getPrecedence(nextOper.token) == Precedence::PREC_NONE) {
                 return std::make_shared<Binary>(lhs, rhs, oper);
             }
 
-            // Checks if the new operator precedence is greater than the previous, if it is then change rhs to a new Binary Expression (so precedence goes to rhs instead)
-            while (currentPriority >= getPrecedence(oper.token)) {
-                // Change rhs to the new Binary expression to rule precedence
-                rhs = binary(rhs, operPriority + (currentPriority > operPriority ? 1 : 0));
-
-                // Gets the current operator after rhs and replaces the old with it
-                currentPriority = getPrecedence(current().token);
-
-                // Checks if the operator exists in the hashmap
-                if (currentPriority == PREC_NONE) {
-                    break;
-                }
+            while (getPrecedence(nextOper.token) >= getPrecedence(oper.token)) {
+                rhs = binary(rhs, getPrecedence(oper.token) + (
+                    getPrecedence(nextOper.token) > getPrecedence(oper.token) ? 1 : 0
+                ));
+                nextOper = fetch();
             }
-
-            lhs = std::make_shared<Binary>(lhs, rhs, oper);
         }
 
         return lhs;
     }
 
+    std::optional<std::shared_ptr<Statement>> unary() {
+        auto oper = fetch();
+
+        if (tokenClassMatch({ TokenClass::T_MINUS, TokenClass::T_BANG })) {
+            auto rhs = expression();
+            return std::make_shared<Unary>(rhs, oper);
+        }
+
+        return std::nullopt;
+    }
+
     std::shared_ptr<Statement> primary() {
-        switch (current().token) {
+        auto current = fetch();
+
+        switch (current.token) {
+            case TokenClass::T_IDENTIFIER:
             case TokenClass::T_NUMBER:
             case TokenClass::T_STRING:
             case TokenClass::T_TRUE:
             case TokenClass::T_FALSE:
             case TokenClass::T_NULL:
-            case TokenClass::T_IDENTIFIER:
                 {
                     advance();
-                    return std::make_shared<LiteralValue>(before());
+                    return std::make_shared<Literal>(fetchPrevious());
+                }
+            case TokenClass::T_LEFTPAREN:
+                {
+                    advance();
+                    auto expr = expression();
+                    advance();
+
+                    if (!tokenClassMatch({ TokenClass::T_RIGHTPAREN })) {
+                        throw ParserException("A closing parenthesis ')' was expected but got something else instead...");
+                    }
+
+                    return std::make_shared<Grouping>(expr);
                 }
                 break;
         }
 
-        if (current().token == TokenClass::T_LEFTPAREN) {
-            advance();
-            auto expr = expression();
-            advance();
-
-            return std::make_shared<Grouping>(expr);
-        }
-
-        std::stringstream str;
-
-        str << "Genesis | ParserException:\n"
-            << "  Line: " << current().line << "\n"
-            << "  Expected an expression but got '" << current().value << "' instead?\n";
-
-        throw LexerException(str.str());
+        throw ParserException("An expression was expected but got something else instead...");
     }
 
     std::shared_ptr<Statement> expression() {
-        std::optional<std::shared_ptr<Statement>> lhs = std::nullopt;
+        if (auto isUnary = unary())
+            return *isUnary;
+    
+        auto lhs = primary();
 
-        if (matches({TokenClass::T_MINUS, TokenClass::T_BANG}, current())) {
-            auto oper = current();
-            auto rhs = primary();
+        lhs = binary(lhs, 0);
 
-            lhs = std::make_shared<Unary>(rhs, oper);
-        }
-
-        if (!lhs) {
-            lhs = primary();
-        }
-
-        lhs = binary(*lhs, 1);
-
-        return *lhs;
-    }
-
-    std::shared_ptr<Statement> declaration() {
-        advance();
-
-        auto name = consume(TokenClass::T_IDENTIFIER, "Genesis | ParserException:\n  Expected an identifier after 'let'");
-
-        assert(TokenClass::T_EQUAL);
-        advance();
-
-        auto value = expression();
-
-        return std::make_shared<LocalAssignment>(name, value);
+        return lhs;
     }
 
 public:
-    Parser(std::vector<TokenInstance> _tokens) : tokens(_tokens){};
+    Parser(std::vector<TokenInstance> tokens) : tokens(tokens) {}
 
     std::vector<std::shared_ptr<Statement>> compile() {
-        while (!atEnd()) {
-            std::shared_ptr<Statement> expr;
+        std::vector<std::shared_ptr<Statement>> statements;
 
-            switch (current().token) {
-                case TokenClass::T_LET:
-                    {
-                        statements.push_back(declaration());
-                        continue;
-                    }
-                    break; 
-            }
+        while (!atEndOfTokens()) {
+            std::shared_ptr<Statement> expr;
 
             expr = expression();
 
@@ -247,5 +165,5 @@ public:
         }
 
         return statements;
-    };
+    }
 };

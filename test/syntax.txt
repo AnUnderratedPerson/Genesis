@@ -1,1 +1,1 @@
-let local
+"Hello world!" + "Something"

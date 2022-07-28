@@ -3,7 +3,7 @@
 class Expression;
 class Statement;
 
-class LiteralValue;
+class Literal;
 class Binary;
 class Unary;
 class Grouping;
@@ -13,7 +13,7 @@ class LocalAssignment;
 class Visit {
 public:
     virtual void visit(Expression&) = 0;
-    virtual void visit(LiteralValue&) = 0;
+    virtual void visit(Literal&) = 0;
     virtual void visit(Binary&) = 0;
     virtual void visit(Unary&) = 0;
     virtual void visit(Grouping&) = 0;
@@ -33,11 +33,11 @@ public:
     virtual std::string toString() = 0;
 };
 
-class LiteralValue : public Expression {
+class Literal : public Expression {
 public:
     TokenInstance token;
 
-    LiteralValue(TokenInstance _token) : token(_token) {};
+    Literal(TokenInstance _token) : token(_token) {};
 
     void accept(Visit &visitor) {
         visitor.visit(*this);
@@ -61,7 +61,7 @@ public:
     };
 
     std::string toString() {
-        return "(" + left->toString() + " " + op.value + " " + right->toString() + ")";
+        return "Binary: (" + left->toString() + " " + op.value + " " + right->toString() + ")";
     }
 };
 
@@ -77,7 +77,7 @@ public:
     };
 
     std::string toString() {
-        return "(" + op.value + right->toString() + ")";
+        return "Unary: (" + op.value + right->toString() + ")";
     }
 };
 
@@ -92,7 +92,7 @@ public:
     };
 
     std::string toString() {
-        return "(" + expression->toString() + ")";
+        return "Group: (" + expression->toString() + ")";
     }
 };
 
@@ -108,6 +108,6 @@ public:
     };
 
     std::string toString() {
-        return "localAssignment " + name.value + " = " + value->toString();
+        return "let (local) " + name.value + " = " + value->toString();
     }
 };

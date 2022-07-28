@@ -51,6 +51,7 @@ enum class TokenClass {
     T_NULL,
 
     T_NONE,
+    T_EOF
 };
 
 struct TokenInstance {
