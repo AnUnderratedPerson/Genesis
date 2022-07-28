@@ -1,10 +1,14 @@
 #include "./TokenClass.hpp"
 
-struct LexerException {
+class LexerException : public Exception {
+public:
     std::string message;
-    int line = 1;
 
-    std::string what() { return message; }
+    LexerException(std::string message) : message(message) {}
+
+    std::string exception() {
+        return message;
+    }
 };
 
 class Lexer {
@@ -12,6 +16,7 @@ private:
     std::string sourceCode;
     std::vector<TokenInstance> tokens;
     int current = 0, line = 1;
+
     std::unordered_map<std::string, TokenClass> tokenClasses = {
         { "let", TokenClass::T_LET },
         { "function", TokenClass::T_FUNCTION },
@@ -39,7 +44,7 @@ public:
         return (current >= sourceCode.size());
     }
 
-    void advanceCurrent() {
+    void advance() {
         current++;
     }
 
@@ -53,7 +58,7 @@ public:
 
     bool next(char _next) {
         if (preview(_next)) {
-            advanceCurrent();
+            advance();
             return true;
         }
 
@@ -91,11 +96,11 @@ public:
     }
 
     void parseString() {
-        advanceCurrent();
-        std::string str;
+        advance();
+        std::string constructor;
 
         if (at() == '"') {
-            tokens.push_back(TokenInstance{TokenClass::T_STRING, str});
+            tokens.push_back(TokenInstance{TokenClass::T_STRING, constructor});
             return;
         }
 
@@ -105,60 +110,68 @@ public:
             if (_char == '"')
                 break;
 
-            str += at();
-            advanceCurrent();
+            constructor += at();
+            advance();
         }
 
-        if (atEnd())
-            throw LexerException{"Unterminated string literal...", line};
+        if (atEnd()) {
+            std::stringstream str;
 
-        tokens.push_back(TokenInstance {TokenClass::T_STRING, str});
+            str << "LexerException:\n" 
+                    << "  Line: " << line << "\n"
+                    << "  Unterminated string literal found:\n  \"" << constructor << "\n";
+
+            throw LexerException(str.str());
+        }
+
+        tokens.push_back(TokenInstance{TokenClass::T_STRING, constructor});
     }
 
     void parseNumber() {
-        std::string num;
+        std::string constructor;
 
         while (!atEnd() && isDigit(at())) {
-            num += at();
-            advanceCurrent();
+            constructor += at();
+            advance();
         }
 
         if ((at() == 'e') || (at() == '.')){
-            num += at();
-            advanceCurrent();
+            constructor += at();
+            advance();
         }
 
         while (!atEnd() && isDigit(at())) {
-            num += at();
-            advanceCurrent();
+            constructor += at();
+            advance();
         }
 
         current--;
-        tokens.push_back(TokenInstance {TokenClass::T_NUMBER, num});
+        tokens.push_back(TokenInstance{TokenClass::T_NUMBER, constructor});
     }
 
     void parseComment() {
-        advanceCurrent();
+        advance();
+
         while (!atEnd() && at() != '\n') {
-            advanceCurrent();
+            advance();
         }
 
         current--;
     }
 
     void parseIdentifier() {
-        std::string id;
+        std::string constructor;
 
         while (!atEnd() && isAlphaNumeric(at())) {
-            id += at();
-            advanceCurrent();
+            constructor += at();
+            advance();
         }
 
         current--;
-        if (tokenClasses.find(id) != tokenClasses.end())
-            tokens.push_back(TokenInstance {tokenClasses[id], id});
+        if (tokenClasses.find(constructor) != tokenClasses.end())
+            tokens.push_back( {tokenClasses[constructor], constructor});
         else
-            tokens.push_back(TokenInstance {TokenClass::T_IDENTIFIER, id});
+            tokens.push_back({TokenClass::T_IDENTIFIER, constructor});
     }
 
     std::vector<TokenInstance> compile() {
@@ -216,7 +229,6 @@ public:
                     parseComment(); 
                 else
                     tokens.push_back( {TokenClass::T_SLASH, "/"});
-
                 break;
             case '*':
                 tokens.push_back( {TokenClass::T_STAR, "*"});
@@ -237,17 +249,25 @@ public:
                 parseString();
                 break;
             default:
-                if (isDigit(_current))
+                if (isDigit(_current)) {
                     parseNumber();
-                else if (isAlpha(_current))
+                }
+                else if (isAlpha(_current)) {
                     parseIdentifier();
-                else
-                    throw LexerException{format("Unknown character '%c' found while reading file...", {_current}), line};
-                    
+                }
+                else {
+                    std::stringstream str;
+
+                    str << "Genesis | LexerException:\n"
+                        << "  Line: " << line << "\n"
+                        << "  Unknown character found while parsing file:\n  >'" << _current << "'\n";
+
+                    throw LexerException(str.str());
+                }                    
                 break;
             }
 
-            advanceCurrent();
+            advance();
         }
 
         return tokens;

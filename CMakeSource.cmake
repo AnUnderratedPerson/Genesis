@@ -4,5 +4,5 @@ target_sources(Genesis PUBLIC
     "${Genesis.INCLUDE}/AST/TokenClass.hpp"
 
     # OTHER COMPONENTS
-    "${Genesis.INCLUDE}/Util/Source.hpp"
+    "${Genesis.INCLUDE}/Util/Util.hpp"
 )

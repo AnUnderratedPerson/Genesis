@@ -1,90 +1,67 @@
 #include "../include/AST/Parser.hpp"
 
-struct GPair {
-    bool success;
-    std::string response;
+class CoreException : public Exception {
+public:
+    std::string message;
+
+    CoreException(std::string message) : message(message) {}
+
+    std::string exception() {
+        return message;
+    }
 };
 
-GPair fetchContent(int count, char** argv) {
-    if (count <= 1) {
-        std::cerr
-            << ">> Genesis:\n"
-            << "No file path found or supplied to compiler...\n";
+class CoreInstance {
+public:
+    CoreInstance() {}
 
-        return {false, ""};
+    std::string readFile(std::string path) {
+        std::fstream inputFile;
+        std::stringstream buffer;
+
+        inputFile.open(path, std::ios::in);
+
+        if (!inputFile.is_open()) {
+            std::stringstream str;
+
+            str << "Could not open file at path:\n  " 
+                << path;
+            
+            throw CoreException(str.str());
+        }
+
+        buffer << inputFile.rdbuf();
+        inputFile.close();
+
+        return buffer.str();
     }
 
-    const char *filePath = argv[1];
-    std::fstream inputFile;
+    void run(std::string path) {
+        std::string source = readFile(path);
 
-    inputFile.open(filePath, std::ios::in);
+        Lexer lexer(source);
+        Parser parser(lexer.compile());
+        auto AST = parser.compile();
 
-    if (!inputFile.is_open()) {
-        std::cerr
-            << ">> Genesis:\n"
-            << "Could not open file at path '" << filePath << "'...\n";
-
-        return {false, ""};
+        for (auto &node : AST) {
+            std::cout << node->toString() << std::endl;
+        }
     }
+};
 
-    std::stringstream buffer;
-
-    buffer << inputFile.rdbuf();
-    inputFile.close();
-
-    return {true, buffer.str()};
-}
-
-/*
 int main(int charc, char** argv) {
-    GPair sourceCode = fetchContent(charc, argv);
-
-    if (!sourceCode.success)
+    if (charc < 2) {
+        std::cout << "Usage: " << argv[0] << " <path>" << std::endl;
         return 1;
+    }
 
-    Lexer lexer(sourceCode.response);
-    std::vector<TokenInstance> tokens;
-
+    CoreInstance core;
+    
     try {
-        tokens = lexer.compile();
-    }
-    catch(LexerException& e) {
-        std::cerr
-            << ">> GenesisException:\n"
-            << ">> Message: " << e.message << "\n"
-            << ">> Line: " << e.line << "\n";
-
+        core.run(argv[1]);
+        return 0;
+    } catch (Exception& e) {
+        std::cerr << e.exception() << std::endl;
         return 1;
     }
-
-    for (auto i : tokens) {
-        std::cout
-            << ">> Value: " << i.value << "\n";
-    }
-
-    Parser parser(tokens);
-    std::vector<std::shared_ptr<Statement>> statements;
-
-    try {
-        statements = parser.compile();
-    }
-    catch(ParserException& e) {
-        std::cerr
-            << ">> GenesisException:\n"
-            << ">> Message: " << e.message << "\n";
-
-        return 1;
-    }
-
-    for (auto i : statements) {
-        std::cout
-            << i->toString() << "\n";
-    }
-
-    return 0;
-}
-*/
-
-int main() {
-    std::cout << format("(%i %i)", {1, 2, 3}) << std::endl;
 }

@@ -49,6 +49,9 @@
         "cinttypes": "cpp",
         "typeinfo": "cpp",
         "variant": "cpp",
-        "optional": "cpp"
+        "optional": "cpp",
+        "ratio": "cpp",
+        "chrono": "cpp",
+        "ctime": "cpp"
     }
 }

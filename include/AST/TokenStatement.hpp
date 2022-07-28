@@ -8,6 +8,8 @@ class Binary;
 class Unary;
 class Grouping;
 
+class LocalAssignment;
+
 class Visit {
 public:
     virtual void visit(Expression&) = 0;
@@ -15,6 +17,8 @@ public:
     virtual void visit(Binary&) = 0;
     virtual void visit(Unary&) = 0;
     virtual void visit(Grouping&) = 0;
+
+    virtual void visit(LocalAssignment &) = 0;
 };
 
 class Statement {
@@ -57,7 +61,7 @@ public:
     };
 
     std::string toString() {
-        return format("(%s %s %s)", { left->toString(), op.value, right->toString() });
+        return "(" + left->toString() + " " + op.value + " " + right->toString() + ")";
     }
 };
 
@@ -73,7 +77,7 @@ public:
     };
 
     std::string toString() {
-        return format("(%s %s)", { op.value, right->toString() });
+        return "(" + op.value + right->toString() + ")";
     }
 };
 
@@ -88,6 +92,22 @@ public:
     };
 
     std::string toString() {
-        return format("(%s)", { expression->toString() });
+        return "(" + expression->toString() + ")";
+    }
+};
+
+class LocalAssignment : public Statement {
+public:
+    TokenInstance name;
+    std::shared_ptr<Statement> value;
+
+    LocalAssignment(TokenInstance _name, std::shared_ptr<Statement> _value) : name(_name), value(_value) {};
+    
+    void accept(Visit &visitor) {
+        visitor.visit(*this);
+    };
+
+    std::string toString() {
+        return "localAssignment " + name.value + " = " + value->toString();
     }
 };
