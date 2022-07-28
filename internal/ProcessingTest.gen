@@ -1,13 +1,9 @@
-@define Processor_Tag true
+// --> TEST: Processing
 
-@if Processor_Tag
-    print("Hello world!")
+@define d = "Hello world!"
+
+@if (true)
+    print("Bye")
 @else
-    print("Goodbye world!")
+    print("Hello")
 @end
-
-// --> Expected output (as tokens): 
-//        TokenInstance: print
-//        TokenInstance: (
-//        TokenInstance: "Hello world!"
-//        TokenInstance: )

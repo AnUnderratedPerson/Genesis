@@ -1,8 +1,8 @@
 #include <chrono>
 
-#include "../include/Processing/Processor.hpp"
 #include "../include/Util/Util.hpp"
 
+/*
 std::string readSource(std::string path) {
     std::fstream file;
     std::stringstream ss;
@@ -22,12 +22,10 @@ std::string readSource(std::string path) {
 int codeProcessing() {
     std::string source;
 
-    try
-    {
+    try {
         source = readSource("internal/ProcessingTest.gen");
     }
-    catch (CoreException &e)
-    {
+    catch (CoreException &e) {
         e.what();
         return 1;
     }
@@ -35,35 +33,26 @@ int codeProcessing() {
     Lexer lexer(source);
     std::vector<TokenInstance> tokens;
 
-    try
-    {
+    try {
         tokens = lexer.compile();
     }
-    catch (LexerException &e)
-    {
+    catch (LexerException &e) {
         e.what();
         return 1;
     }
 
     std::cout << ">> BEFORE PRE CODE PROCESSING <<" << std::endl;
 
-    for (auto token : tokens)
-    {
-        std::cout << "TokenInstance: " << token.tokenValue << std::endl;
-    }
-
-    Processor processor(tokens);
+    Processor processor(tokens, lexer.processorItems);
     std::chrono::duration<double, std::milli> duration;
 
-    try
-    {
+    try {
         auto now = std::chrono::system_clock::now();
         tokens = processor.process();
         auto later = std::chrono::system_clock::now();
         duration = std::chrono::duration<double, std::milli>(later - now);
     }
-    catch (ProcessException &e)
-    {
+    catch (ProcessException &e) {
         e.what();
         return 1;
     }
@@ -71,14 +60,12 @@ int codeProcessing() {
     std::cout << ">> AFTER PRE CODE PROCESSING <<" << std::endl;
     std::cout << ">> PROCESSING TIME: " << duration.count() << "ms <<" << std::endl;
 
-    for (auto token : tokens)
-    {
-        std::cout << "TokenInstance: " << token.tokenValue << std::endl;
+    for (auto &token : tokens) {
+        std::cout << "TokenValue: " << token.tokenValue << std::endl;
     }
 
     return 0;
 }
+*/
 
-int main() {
-    return codeProcessing();
-}
+int main() {}

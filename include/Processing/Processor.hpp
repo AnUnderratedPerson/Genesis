@@ -12,182 +12,202 @@ class Processor {
 private:
     std::vector<TokenInstance> tokens;
     std::vector<TokenInstance> output;
-    int current;
+    std::vector<ProcessorItem> processorItems;
 
-    bool atEnd() {
-        return (current >= tokens.size());
+    int tokenOffset = 0;
+    int currentProcessor = 0;
+
+    bool atEndOfProcessor() {
+        return (currentProcessor >= processorItems.size());
     }
 
-    void advance() {
-        current++;
+    bool atEndOfTokens(int location) {
+        return (location >= tokens.size());
     }
 
-    void before() {
-        current--;
+    bool assertProcessorDefinition(std::string name) {
+        return (definitions.find(name) != definitions.end());
     }
 
-    TokenInstance currently() {
-        return (atEnd() ? TokenInstance() : tokens[current]);
+    void advanceOffset() {
+        tokenOffset++;
     }
 
-    TokenInstance expect(std::initializer_list<TokenClass> types, std::string exception) {
-        if (atEnd())
-            throw ProcessException { exception };
+    void advanceCurrent() {
+        currentProcessor++;
+    }
+
+    void addProcessorDefinition(std::string name, TokenInstance value) {
+        definitions[name] = value;
+    }
+
+    ProcessorItem getCurrentProcessor() {
+        return (atEndOfProcessor() ? ProcessorItem() : processorItems[currentProcessor]);
+    }
+
+    TokenInstance getCurrentToken(int location = -1) {
+        location = location == -1 ? tokenOffset : location;
+        return (atEndOfTokens(location) ? TokenInstance() : tokens[location]);
+    }
+
+    TokenInstance getProcessorDefinition(std::string name) {
+        return definitions[name];
+    }
+
+    TokenInstance assert(TokenClass token, std::string message) {
+        auto current = getCurrentToken();
         
-        for (auto type : types) {
-            if (tokens[current].tokenClass != type)
-                continue;
-
-            return tokens[current];
+        if (token != getCurrentToken().tokenClass) {
+            throw ProcessException { message };
         }
 
-        throw ProcessException { exception };
+        return current;
+    }
+
+    TokenInstance assert(std::vector<TokenClass> token, std::string message) {
+        auto current = getCurrentToken();
+
+        for (int i = 0; i < token.size(); i++) {
+            if (token[i] == current.tokenClass) {
+                return current;
+            }
+        }
+
+        throw ProcessException { message };
     }
 
     void define() {
-        advance();
+        auto self = getCurrentProcessor();
 
-        auto name = expect({ TokenClass::T_IDENTIFIER }, "Expected an identifier for the processor but got something else instead...");
-        advance();
-        auto expression = expect({ 
-            TokenClass::T_TRUE, TokenClass::T_FALSE, TokenClass::T_NULL 
-        }, "Expected a boolean or null but got something else instead...");
+        self.tokenOffset++;
+        tokenOffset = self.tokenOffset;
 
-        definitions[name.tokenValue] = expression;
+        auto name = assert(TokenClass::T_IDENTIFIER_LITERAL, "@define expected a name or identifier...");
+
+        advanceOffset();
+        assert(TokenClass::T_EQUAL, "@define expected an equal sign for assignment of value...");
+        advanceOffset();
+
+        auto value = assert({
+            TokenClass::T_NUMBER_LITERAL,
+            TokenClass::T_STRING_LITERAL,
+            TokenClass::T_TRUE,
+            TokenClass::T_FALSE,
+            TokenClass::T_NULL
+        }, "@define expected a string literal for value...");
+
+        // --> Add the processor definition to the unordered map
+        addProcessorDefinition(name.tokenValue, value);
     }
 
     void ifProcessor() {
-        advance();
+        auto self = getCurrentProcessor();
+        bool response = false;
 
-        auto expression = expect({
-            TokenClass::T_TRUE, TokenClass::T_FALSE, TokenClass::T_NULL,
-            TokenClass::T_IDENTIFIER
-        }, "Expected a boolean, identifier or null but got something else instead...");
+        self.tokenOffset++;
+        tokenOffset = self.tokenOffset;
 
-        advance();
+        assert(TokenClass::T_LPAREN, "@if expected an '(' before condition of if processor...");
+        advanceOffset();
 
-        if (expression.tokenClass == TokenClass::T_IDENTIFIER) {
-            // --> fetch the processor definition
+        auto condition = assert({
+            TokenClass::T_NUMBER_LITERAL,
+            TokenClass::T_STRING_LITERAL,
+            TokenClass::T_IDENTIFIER_LITERAL,
+            TokenClass::T_TRUE,
+            TokenClass::T_FALSE,
+            TokenClass::T_NULL
+        }, "@if expected a condition bring a valid literal value...");
 
-            if (definitions.find(expression.tokenValue) != definitions.end())
-                expression = definitions[expression.tokenValue];
-            else
-                expression = TokenInstance { TokenClass::T_NULL, "null", -1 };    
+        advanceOffset();
+        assert(TokenClass::T_RPAREN, "@if expected an ')' after condition of if processor...");
+        advanceOffset();
+
+        if (condition.tokenClass == TokenClass::T_IDENTIFIER_LITERAL) {
+            if (!assertProcessorDefinition(condition.tokenValue))
+                throw ProcessException { "@if expected an assigned processor definition name but got '" + condition.tokenValue + "'..." };
+
+            condition = getProcessorDefinition(condition.tokenValue);
         }
 
-        std::cout << expression.tokenValue << std::endl;
+        response = (condition.tokenClass != TokenClass::T_FALSE && condition.tokenClass != TokenClass::T_NULL);
 
-        switch (expression.tokenClass) {
-            // --> Heres how we'll do this. 
-            // --> If the processor is false, then we will just skip the rest of the code in between the if and endif processor tag
-            // --> If the processor is true, then we will execute the code in between the if and endif processor tag
-            // --> If the processor is false but provides an @else, then we will execute the code in between the else and endif processor tag
+        // --> CORE: Now we have a response to check if we should run the processor
+        // --> If the response is true, we run the processor and collect those tokens
+        // --> If the response is false, we skip the tokens BUT we gather the offset value from the next processor which is expected to be an @else or @end
+        
+        if (response) {
+            auto processor = getCurrentProcessor();
 
-            case TokenClass::T_NULL:
-            case TokenClass::T_FALSE:
-                while (!atEnd()) {
-                    if (currently().tokenClass == TokenClass::T_ATSIGN)
-                        advance();
+            while (!atEndOfTokens(tokenOffset)) {
+                auto token = getCurrentToken();
 
-                    if ((currently().tokenClass == TokenClass::T_ELSE) || (currently().tokenClass == TokenClass::T_ENDIF))
-                        break;
-
-                    advance();
+                if (token.tokenClass == TokenClass::T_IFPROCESSOR || 
+                    token.tokenClass == TokenClass::T_ELSEPROCESSOR || 
+                    token.tokenClass == TokenClass::T_ENDPROCESSOR) {
+                    advanceOffset();
+                    break;
                 }
 
-                if (currently().tokenClass == TokenClass::T_ELSE) {
-                    advance();
+                output.push_back(token);
+                advanceOffset();
+            }
 
-                    while (!atEnd()) {
-                        if (currently().tokenClass == TokenClass::T_ATSIGN)
-                            advance();
+            if (processor.processorClass == TokenClass::T_IFPROCESSOR) {
+                ifProcessor();
+            }
+  
+            if (processor.processorClass == TokenClass::T_ENDPROCESSOR) {
+                return;
+            }
 
-                        if (currently().tokenClass == TokenClass::T_ENDIF) {
-                            advance();
-                            return;
-                        }
+            /*
+            if (processor.processorClass == TokenClass::T_ELSEPROCESSOR) {
+                int elseOffset = processor.tokenOffset;
+                
+                advanceCurrent();
+                processor = getCurrentProcessor();
 
-                        output.push_back(currently());
-                        advance();
-                    }
-
-                    throw ProcessException { "Expected an @end processor tag but got something else instead..." };
+                if (processor.processorClass == TokenClass::T_IFPROCESSOR) {
+                    ifProcessor();
+                    advanceCurrent();
                 }
 
-                if (currently().tokenClass != TokenClass::T_ENDIF) {
-                    throw ProcessException { "Expected an @end processor tag but got something else instead..." };
-                }
-                break;
-            case TokenClass::T_TRUE:
-                while (!atEnd()) {
-                    if (currently().tokenClass == TokenClass::T_ATSIGN)
-                        advance();
+                processor = getCurrentProcessor();
 
-                    if ((currently().tokenClass == TokenClass::T_ELSE) || (currently().tokenClass == TokenClass::T_ENDIF))
-                        break;
+                if (processor.processorClass != TokenClass::T_ENDPROCESSOR)
+                    throw ProcessException{"@if expected an @end processor to close block..."};
 
-                    output.push_back(currently());
-                    advance();
-                }
+                int endOffset = processor.tokenOffset;
+                int jumpOffset = endOffset - elseOffset;
 
-                if (currently().tokenClass == TokenClass::T_ELSE) {
-                    advance();
-
-                    while (!atEnd()) {
-                        if (currently().tokenClass == TokenClass::T_ATSIGN)
-                            advance();
-
-                        if (currently().tokenClass == TokenClass::T_ENDIF) {
-                            advance();
-                            return;
-                        }
-
-                        advance();
-                    }
-
-                    throw ProcessException { "Expected an @end processor tag but got something else instead..." };
-                }
-
-                if (currently().tokenClass != TokenClass::T_ENDIF) {
-                    throw ProcessException { "Expected an @end processor tag but got something else instead..." };
-                }
-                break;
+                tokenOffset += jumpOffset;
+            }
+            */
         }
     }
 
 public:
     std::unordered_map<std::string, TokenInstance> definitions;
 
-    Processor(std::vector<TokenInstance> tokens) : tokens(tokens), output({}), current(0) {}
+    Processor(std::vector<TokenInstance> tokens, std::vector<ProcessorItem> processorItems) : tokens(tokens), processorItems(processorItems) {}
 
     std::vector<TokenInstance> process() {
-        while (!atEnd()) {
-            auto currentToken = currently();
+        while (!atEndOfProcessor()) {
+            auto processor = getCurrentProcessor();
 
-            switch (currentToken.tokenClass) {
-                case TokenClass::T_ATSIGN:
-                    {
-                        advance();
-                        auto token = currently();
-
-                        switch (token.tokenClass) {
-                            case TokenClass::T_DEFINEPROCESSOR:
-                                define();
-                                break;
-                            case TokenClass::T_IF:
-                                ifProcessor();
-                                break;
-                            default:
-                                throw ProcessException { "Expected a valid processor tag (@if or @define) but got something else instead..." };
-                        }
-                    }
+            switch (processor.processorClass) {
+                case TokenClass::T_DEFINEPROCESSOR:
+                    define();
+                    break;
+                case TokenClass::T_IFPROCESSOR:
+                    ifProcessor();
                     break;
                 default:
-                    output.push_back(currently());
-                    break;
+                    throw ProcessException { "Invalid processor: " + processor.processorValue };
             }
 
-            advance();
+            advanceCurrent();
         }
 
         return output;

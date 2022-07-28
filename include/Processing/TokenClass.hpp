@@ -7,6 +7,10 @@
 #include <fstream>
 #include <sstream>
 #include <unordered_map>
+#include <algorithm>
+#include <cstring>
+#include <variant>
+#include <memory>
 
 struct CoreException {
     std::string message;
@@ -18,7 +22,8 @@ struct CoreException {
 
 #endif
 
-enum class TokenClass {
+enum class TokenClass
+{
     T_LPAREN,
     T_RPAREN,
     T_LBRACE,
@@ -49,16 +54,20 @@ enum class TokenClass {
     T_IF,
     T_ELSE,
     T_ELSEIF,
-    T_ENDIF,
     T_WHILE,
     T_RETURN,
     T_TRUE,
     T_FALSE,
     T_NULL,
     T_FUNCTION,
+
+    T_IFPROCESSOR,
+    T_ELSEPROCESSOR,
+    T_ELSEIFPROCESSOR,
+    T_ENDPROCESSOR,
     T_DEFINEPROCESSOR,
 
-    T_IDENTIFIER,
+    T_IDENTIFIER_LITERAL,
     T_NUMBER_LITERAL,
     T_STRING_LITERAL,
 };

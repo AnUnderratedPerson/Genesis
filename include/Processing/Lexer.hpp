@@ -8,6 +8,12 @@ struct LexerException {
     }
 };
 
+struct ProcessorItem {
+    TokenClass processorClass;
+    std::string processorValue;
+    int tokenOffset;
+};
+
 class Lexer {
 private:
     std::string source;
@@ -18,7 +24,6 @@ private:
         { "if", TokenClass::T_IF },
         { "else", TokenClass::T_ELSE },
         { "elseif", TokenClass::T_ELSEIF },
-        { "end", TokenClass::T_ENDIF },
         { "while", TokenClass::T_WHILE },
         { "return", TokenClass::T_RETURN },
         { "true", TokenClass::T_TRUE },
@@ -27,7 +32,14 @@ private:
         { "and", TokenClass::T_AND },
         { "or", TokenClass::T_OR },
         { "function", TokenClass::T_FUNCTION },
-        { "define", TokenClass::T_DEFINEPROCESSOR },
+    };
+
+    std::unordered_map<std::string, TokenClass> processors = {
+        { "@define", TokenClass::T_DEFINEPROCESSOR },
+        { "@if", TokenClass::T_IFPROCESSOR },
+        { "@else", TokenClass::T_ELSEPROCESSOR },
+        { "@elseif", TokenClass::T_ELSEIFPROCESSOR },
+        { "@end", TokenClass::T_ENDPROCESSOR }
     };
 
     char currently() {
@@ -141,7 +153,7 @@ private:
         if (keywords.find(constructor) != keywords.end())
             append({ keywords[constructor], constructor, line });
         else
-            append({ TokenClass::T_IDENTIFIER, constructor, line });
+            append({TokenClass::T_IDENTIFIER_LITERAL, constructor, line});
     }
 
     void revokeComment() {
@@ -149,11 +161,33 @@ private:
             advance();
     }
 
+    void createProcessor() {
+        std::string constructor;
+
+        constructor += currently();
+        advance();
+
+        while (!atEnd() && isAnAlphaNumeric(currently())) {
+            constructor += currently();
+            advance();
+        }
+        
+        if (processors.find(constructor) != processors.end()) {
+            processorItems.push_back({ processors[constructor], constructor, (int) tokens.size() });
+            append({ processors[constructor], constructor, line });
+        }
+        else {
+            throw LexerException { "Invalid processor: " + constructor };
+        }
+    }
+
     void append(TokenInstance value) {
         tokens.push_back(value);
     }
 
 public:
+    std::vector<ProcessorItem> processorItems;
+
     Lexer(std::string source) : source(source), current(0), line(1) {}
 
     std::vector<TokenInstance> compile() {
@@ -204,7 +238,7 @@ public:
                     append({ TokenClass::T_STAR, "*", line });
                     break;
                 case '@':
-                    append({ TokenClass::T_ATSIGN, "@", line });
+                    createProcessor();
                     break;
                 case '<':
                     next('=') ? append({ TokenClass::T_LESSEQUAL, "<=", line }) : append({ TokenClass::T_LESS, "<", line });

@@ -8,16 +8,9 @@
 #include <sstream>
 #include <unordered_map>
 #include <variant>
+#include <cstring>
+#include <memory>
 
-struct CoreException {
-    std::string message;
+class CoreException {};
 
-    void what() {
-        std::cerr << "[Core Exception]: >> " << message << std::endl;
-    }
-};
-
-#endif
-
-// --> TODO: formatting for internal use
-
+#endif // GENESIS_IMPORT_NAMESPACE
