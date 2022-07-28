@@ -10,10 +10,7 @@ cmake_install.cmake
 out
 build
 Genesis
-
-# Visual Studio
 /.vs
-*.ilk
+*.json
 *.pdb
-.git
-/CMakeSettings.json
+*.ilk
