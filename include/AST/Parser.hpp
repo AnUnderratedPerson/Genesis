@@ -1,16 +1,12 @@
-#include "TokenStatement.hpp"
+#include "Statement.hpp"
 
 // Lower down = Greater precedence
 enum Precedence {
     PREC_NONE,        // null
-    PREC_ASSIGNMENT,  // =
-    PREC_OR,          // or
-    PREC_AND,         // and
     PREC_EQUALITY,    // == !=
     PREC_COMPARISON,  // < > <= >=
     PREC_TERM,        // + -
     PREC_FACTOR,      // * /
-    PREC_PRIMARY      // literals
 };
 
 class ParserException : public Exception {
@@ -40,13 +36,15 @@ private:
         {TokenClass::T_LESS, Precedence::PREC_COMPARISON},
         {TokenClass::T_GREATER, Precedence::PREC_COMPARISON},
         {TokenClass::T_LESSEQUAL, Precedence::PREC_COMPARISON},
-        {TokenClass::T_GREATEREQUAL, Precedence::PREC_COMPARISON}
+        {TokenClass::T_GREATEREQUAL, Precedence::PREC_COMPARISON},
+
+        {TokenClass::T_EOF, Precedence::PREC_NONE}
     };
 
     int tokenIndex = 0;
 
     bool atEndOfTokens() {
-        return (tokenIndex == tokens.size());
+        return (tokenIndex >= tokens.size());
     }
 
     bool tokenClassMatch(std::initializer_list<TokenClass> tokens) {
@@ -60,24 +58,43 @@ private:
         return false;
     }
 
-    int advance() { return ++tokenIndex; }
+    void before() { tokenIndex--; }
+    void advance() { tokenIndex++; }
 
     int getPrecedence(TokenClass token) { 
         return (
-            precedences.find(token) != precedences.end() ? precedences[token] : Precedence::PREC_NONE
+            (precedences.find(token) != precedences.end()) ? precedences[token] : Precedence::PREC_NONE
         );
     }
 
-    TokenInstance fetch() { return (atEndOfTokens() ? TokenInstance { TokenClass::T_EOF, "", 0, 0 } : tokens[tokenIndex]); }
+    TokenInstance fetch() { return (atEndOfTokens() ? TokenInstance { TokenClass::T_EOF, "<end of file>", 0, 0 } : tokens[tokenIndex]); }
     TokenInstance fetchPrevious() { return (tokens[tokenIndex - 1]); }
 
-    std::shared_ptr<Statement> binary(std::shared_ptr<Statement> lhs, int currentPrecedence) {
+    TokenInstance consume(TokenClass token, std::string message) {
+        if (atEndOfTokens())
+            throw ParserException(message);
+
+        if (fetch().token != token)
+            throw ParserException(message);
+
+        auto cache = fetch();
+        advance();
+        return cache;
+    }
+
+    std::shared_ptr<Expression> binary(std::shared_ptr<Expression> lhs, int currentPrecedence) {
         auto oper = fetch();
+
+        if (getPrecedence(oper.token) == Precedence::PREC_NONE) {
+            return lhs;
+        }
 
         while (getPrecedence(oper.token) >= currentPrecedence) {
             advance();
+
             auto rhs = primary();
             advance();
+
             auto nextOper = fetch();
 
             if (getPrecedence(nextOper.token) == Precedence::PREC_NONE) {
@@ -88,25 +105,35 @@ private:
                 rhs = binary(rhs, getPrecedence(oper.token) + (
                     getPrecedence(nextOper.token) > getPrecedence(oper.token) ? 1 : 0
                 ));
+
                 nextOper = fetch();
+
+                if (getPrecedence(nextOper.token) == Precedence::PREC_NONE) {
+                    return std::make_shared<Binary>(lhs, rhs, oper);
+                }
             }
+
+            lhs = std::make_shared<Binary>(lhs, rhs, oper);
+            oper = fetch();
         }
 
         return lhs;
     }
 
-    std::optional<std::shared_ptr<Statement>> unary() {
+    std::optional<std::shared_ptr<Expression>> unary() {
         auto oper = fetch();
 
         if (tokenClassMatch({ TokenClass::T_MINUS, TokenClass::T_BANG })) {
             auto rhs = expression();
+            advance();
+            
             return std::make_shared<Unary>(rhs, oper);
         }
 
         return std::nullopt;
     }
 
-    std::shared_ptr<Statement> primary() {
+    std::shared_ptr<Expression> primary() {
         auto current = fetch();
 
         switch (current.token) {
@@ -117,14 +144,12 @@ private:
             case TokenClass::T_FALSE:
             case TokenClass::T_NULL:
                 {
-                    advance();
-                    return std::make_shared<Literal>(fetchPrevious());
+                    return std::make_shared<Literal>(fetch());
                 }
             case TokenClass::T_LEFTPAREN:
                 {
                     advance();
                     auto expr = expression();
-                    advance();
 
                     if (!tokenClassMatch({ TokenClass::T_RIGHTPAREN })) {
                         throw ParserException("A closing parenthesis ')' was expected but got something else instead...");
@@ -138,15 +163,60 @@ private:
         throw ParserException("An expression was expected but got something else instead...");
     }
 
-    std::shared_ptr<Statement> expression() {
+    std::shared_ptr<Expression> expression() {
         if (auto isUnary = unary())
             return *isUnary;
     
         auto lhs = primary();
+        advance();
 
         lhs = binary(lhs, 0);
 
         return lhs;
+    }
+
+    std::shared_ptr<Statement> assignment() {
+        auto name = consume(TokenClass::T_IDENTIFIER, "A variable name was expected but got something else instead...");
+        consume(TokenClass::T_EQUAL, "An assignment operator '=' was expected but got something else instead...");
+        auto value = expression();
+
+        return std::make_shared<Assignment>(name, value);
+    }
+
+    std::shared_ptr<Statement> block() {
+        std::vector<std::shared_ptr<Statement>> statements;
+
+        while (!atEndOfTokens() && (fetch().token != TokenClass::T_RIGHTBRACE)) {
+            statements.push_back(run());
+        }
+
+        consume(TokenClass::T_RIGHTBRACE, "A closing brace '}' was expected but got something else instead...");
+        return std::make_shared<Block>(statements);
+    }
+
+    std::shared_ptr<Statement> run() {
+        auto current = fetch();
+        std::shared_ptr<Statement> expr;
+
+        switch (current.token) {
+            case TokenClass::T_LET:
+                advance();
+                return assignment();
+            case TokenClass::T_LEFTBRACE:
+                advance();
+                return block();
+        }
+
+        expr = expression();
+        current = fetch();
+
+        if (current.token == TokenClass::T_EQUAL) {
+            before();
+            return assignment();
+        }
+
+        advance();
+        return expr;
     }
 
 public:
@@ -156,12 +226,7 @@ public:
         std::vector<std::shared_ptr<Statement>> statements;
 
         while (!atEndOfTokens()) {
-            std::shared_ptr<Statement> expr;
-
-            expr = expression();
-
-            statements.push_back(expr);
-            advance();
+            statements.push_back(run());
         }
 
         return statements;

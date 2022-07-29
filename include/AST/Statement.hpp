@@ -7,18 +7,20 @@ class Literal;
 class Binary;
 class Unary;
 class Grouping;
+class Call;
 
-class LocalAssignment;
+class Assignment;
+class Block;
 
 class Visit {
 public:
-    virtual void visit(Expression&) = 0;
     virtual void visit(Literal&) = 0;
     virtual void visit(Binary&) = 0;
     virtual void visit(Unary&) = 0;
     virtual void visit(Grouping&) = 0;
 
-    virtual void visit(LocalAssignment &) = 0;
+    virtual void visit(Assignment &) = 0;
+    virtual void visit(Block &) = 0;
 };
 
 class Statement {
@@ -50,11 +52,11 @@ public:
 
 class Binary : public Expression {
 public:
-    std::shared_ptr<Statement> left;
-    std::shared_ptr<Statement> right;
+    std::shared_ptr<Expression> left;
+    std::shared_ptr<Expression> right;
     TokenInstance op;
 
-    Binary(std::shared_ptr<Statement> _left, std::shared_ptr<Statement> _right, TokenInstance _op) : left(_left), right(_right), op(_op) {};
+    Binary(std::shared_ptr<Expression> _left, std::shared_ptr<Expression> _right, TokenInstance _op) : left(_left), right(_right), op(_op){};
 
     void accept(Visit &visitor) {
         visitor.visit(*this);
@@ -67,11 +69,11 @@ public:
 
 class Unary : public Expression {
 public:
-    std::shared_ptr<Statement> right;
+    std::shared_ptr<Expression> right;
     TokenInstance op;
 
-    Unary(std::shared_ptr<Statement> _right, TokenInstance _op) : right(_right), op(_op) {};
-    
+    Unary(std::shared_ptr<Expression> _right, TokenInstance _op) : right(_right), op(_op){};
+
     void accept(Visit &visitor) {
         visitor.visit(*this);
     };
@@ -83,10 +85,10 @@ public:
 
 class Grouping : public Expression {
 public:
-    std::shared_ptr<Statement> expression;
+    std::shared_ptr<Expression> expression;
 
-    Grouping(std::shared_ptr<Statement> _expression) : expression(_expression) {};
-    
+    Grouping(std::shared_ptr<Expression> _expression) : expression(_expression){};
+
     void accept(Visit &visitor) {
         visitor.visit(*this);
     };
@@ -96,18 +98,40 @@ public:
     }
 };
 
-class LocalAssignment : public Statement {
+class Assignment : public Statement {
 public:
     TokenInstance name;
-    std::shared_ptr<Statement> value;
+    std::shared_ptr<Expression> value;
 
-    LocalAssignment(TokenInstance _name, std::shared_ptr<Statement> _value) : name(_name), value(_value) {};
-    
+    Assignment(TokenInstance _name, std::shared_ptr<Expression> _value) : name(_name), value(_value){};
+
     void accept(Visit &visitor) {
         visitor.visit(*this);
     };
 
     std::string toString() {
-        return "let (local) " + name.value + " = " + value->toString();
+        return "(Assignment) " + name.value + " = " + value->toString();
+    }
+};
+
+class Block : public Statement {
+public:
+    std::vector<std::shared_ptr<Statement>> statements;
+
+    Block(std::vector<std::shared_ptr<Statement>> _statements) : statements(_statements) {};
+
+    void accept(Visit &visitor) {
+        visitor.visit(*this);
+    };
+
+    std::string toString() {
+        std::string result = "Block: {\n";
+
+        for (auto statement : statements) {
+            result += "\t" + statement->toString() + "\n";
+        }
+
+        result += "}";
+        return result;
     }
 };

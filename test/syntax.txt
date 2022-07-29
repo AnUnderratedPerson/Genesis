@@ -1,1 +1,2 @@
-"Hello world!" + "Something"
+let x = 10 + 20
+let y = 2 + 4

@@ -1,4 +1,4 @@
-#include "../include/AST/Parser.hpp"
+#include "../include/Compiler/GenesisVM.hpp"
 
 class CoreException : public Exception {
 public:
@@ -41,11 +41,19 @@ public:
 
         Lexer lexer(source);
         Parser parser(lexer.compile());
-        auto AST = parser.compile();
+        Compiler compiler;
 
-        for (auto &node : AST) {
-            std::cout << node->toString() << std::endl;
+        auto ast = parser.compile();
+
+        for (int i = 0; i < ast.size(); i++) {
+            ast[i]->accept(compiler);
         }
+
+        BytecodeConstructor bytecode = compiler.getBytecode();
+        Genesis genesis(bytecode);
+
+        genesis.compile();
+        debugPrintBytecode(bytecode);
     }
 };
 

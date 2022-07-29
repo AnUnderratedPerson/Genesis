@@ -186,7 +186,7 @@ public:
                 tokens.push_back( {TokenClass::T_RIGHTPAREN, "("});
                 break;
             case '{':
-                tokens.push_back( {TokenClass::T_LEFTBRACE, "}"});
+                tokens.push_back( {TokenClass::T_LEFTBRACE, "{"});
                 break;
             case '}':
                 tokens.push_back( {TokenClass::T_RIGHTBRACE, "}"});
