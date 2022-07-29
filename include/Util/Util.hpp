@@ -9,7 +9,7 @@
 #include <unordered_map>
 #include <variant>
 #include <cstring>
-#include <memory>
+#include <optional>
 
 class CoreException {};
 
